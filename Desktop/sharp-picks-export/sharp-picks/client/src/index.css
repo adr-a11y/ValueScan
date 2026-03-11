@@ -1,0 +1,186 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 222 47% 6%;
+    --foreground: 210 40% 96%;
+
+    --card: 222 47% 9%;
+    --card-foreground: 210 40% 96%;
+
+    --popover: 222 47% 9%;
+    --popover-foreground: 210 40% 96%;
+
+    --primary: 158 64% 52%;
+    --primary-foreground: 222 47% 6%;
+
+    --secondary: 222 40% 15%;
+    --secondary-foreground: 210 40% 96%;
+
+    --muted: 222 40% 14%;
+    --muted-foreground: 215 20% 55%;
+
+    --accent: 158 64% 52%;
+    --accent-foreground: 222 47% 6%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 210 40% 96%;
+
+    --border: 222 40% 18%;
+    --input: 222 40% 18%;
+    --ring: 158 64% 52%;
+
+    --radius: 0.75rem;
+
+    --sidebar-background: 222 47% 7%;
+    --sidebar-foreground: 210 40% 96%;
+    --sidebar-primary: 158 64% 52%;
+    --sidebar-primary-foreground: 222 47% 6%;
+    --sidebar-accent: 222 40% 13%;
+    --sidebar-accent-foreground: 210 40% 96%;
+    --sidebar-border: 222 40% 16%;
+    --sidebar-ring: 158 64% 52%;
+
+    /* Sport color indicators */
+    --nfl-color: 222 89% 60%;
+    --nba-color: 39 96% 55%;
+    --mlb-color: 0 72% 55%;
+    --nhl-color: 200 85% 55%;
+    --soccer-color: 142 71% 45%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    background: hsl(222, 47%, 6%);
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: hsl(222, 47%, 8%);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(222, 40%, 25%);
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(158, 64%, 40%);
+  }
+}
+
+/* Confidence ring animation */
+@keyframes pulse-ring {
+  0% { transform: scale(1); opacity: 0.8; }
+  50% { transform: scale(1.05); opacity: 0.4; }
+  100% { transform: scale(1); opacity: 0.8; }
+}
+
+.live-pulse {
+  animation: pulse-ring 2s ease-in-out infinite;
+}
+
+/* Card glow on hover */
+.pick-card:hover {
+  box-shadow: 0 0 0 1px hsl(158, 64%, 52%, 0.3), 0 4px 24px hsl(158, 64%, 52%, 0.1);
+  transition: box-shadow 0.2s ease;
+}
+
+/* Hot pick glow */
+.pick-card-hot {
+  box-shadow: 0 0 0 1px hsl(39, 96%, 55%, 0.4), 0 4px 20px hsl(39, 96%, 55%, 0.12);
+}
+
+/* Odds badge */
+.odds-positive {
+  color: hsl(158, 64%, 52%);
+}
+.odds-negative {
+  color: hsl(210, 40%, 78%);
+}
+
+/* Unit dots */
+.unit-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+/* Animated line for live picks */
+.live-indicator {
+  position: relative;
+}
+.live-indicator::before {
+  content: '';
+  position: absolute;
+  left: -12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: hsl(0, 72%, 55%);
+  animation: pulse-ring 1.5s ease-in-out infinite;
+}
+
+/* Gradient header */
+.sharp-header {
+  background: linear-gradient(135deg, hsl(222, 47%, 9%) 0%, hsl(222, 47%, 7%) 100%);
+  border-bottom: 1px solid hsl(222, 40%, 16%);
+}
+
+/* Stat card shimmer effect */
+.stat-card {
+  position: relative;
+  overflow: hidden;
+}
+.stat-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, transparent 40%, hsl(158, 64%, 52%, 0.04) 50%, transparent 60%);
+  pointer-events: none;
+}
+
+/* Sport badge colors */
+.sport-nfl { background: hsl(222, 89%, 60%, 0.2); color: hsl(222, 89%, 75%); }
+.sport-nba { background: hsl(39, 96%, 55%, 0.2); color: hsl(39, 96%, 70%); }
+.sport-mlb { background: hsl(0, 72%, 55%, 0.2); color: hsl(0, 72%, 75%); }
+.sport-nhl { background: hsl(200, 85%, 55%, 0.2); color: hsl(200, 85%, 75%); }
+.sport-soccer { background: hsl(142, 71%, 45%, 0.2); color: hsl(142, 71%, 65%); }
+.sport-ncaab { background: hsl(270, 72%, 60%, 0.2); color: hsl(270, 72%, 80%); }
+.sport-mma { background: hsl(280, 72%, 55%, 0.2); color: hsl(280, 72%, 75%); }
+.sport-default { background: hsl(222, 40%, 18%); color: hsl(210, 40%, 75%); }
+
+/* Progress bar glow */
+.confidence-bar {
+  height: 4px;
+  border-radius: 2px;
+  background: hsl(222, 40%, 20%);
+  overflow: hidden;
+}
+.confidence-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.5s ease;
+}
+
+/* Number ticker */
+@keyframes count-up {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.count-animate {
+  animation: count-up 0.4s ease forwards;
+}

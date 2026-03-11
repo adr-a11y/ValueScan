@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: sharp-picks
+    env: node
+    buildCommand: npm install && npm run build
+    startCommand: node dist/index.cjs
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: ODDS_API_KEY
+        sync: false   # you'll paste this manually in Render dashboard
