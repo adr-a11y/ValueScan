@@ -390,9 +390,9 @@ export default function StockDetail() {
           <CardContent>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               <ScoreCard
-                label="Discounted Cash Flow"
+                label="EV / EBITDA"
                 value={stock.dcfScore}
-                description="How undervalued vs intrinsic value based on DCF analysis. Score 5 = deeply undervalued."
+                description="Enterprise Value to EBITDA. Lower = cheaper. Score 5 = very low multiple (< 8x), undervalued vs peers."
                 color="bg-blue-500"
               />
               <ScoreCard
@@ -436,7 +436,7 @@ export default function StockDetail() {
                 <div>
                   <p className="font-semibold">Overall Grade</p>
                   <p className="text-sm text-muted-foreground">
-                    Composite score based on DCF, ROE, ROA, Debt/Equity, P/E, and P/B valuations.
+                    Composite score based on EV/EBITDA, ROE, ROA, Debt/Equity, P/E, and P/B valuations.
                     {["S", "S-", "A+", "A"].includes(stock.overallRating) && " This is among the highest-rated stocks in the S&P 500."}
                     {["B+", "B"].includes(stock.overallRating) && " Above-average fundamentals with solid valuation."}
                     {["B-", "C+", "C"].includes(stock.overallRating) && " Mixed signals — review individual scores."}

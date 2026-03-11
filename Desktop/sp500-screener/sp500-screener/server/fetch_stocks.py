@@ -560,7 +560,7 @@ def main():
             except Exception:
                 pass
 
-            # ── Scores and Overall Rating ───────────────────────────────
+            # ── Scores and Overall Rating ──────────────────────────────────────
             pe_score = None
             pb_score = None
             dcf_score = None
@@ -584,20 +584,67 @@ def main():
                 else:
                     overall_rating = "D"
 
-            # Simple PE score: lower PE = higher score (1-5 scale)
+            # PE score: lower P/E = higher score (1-5)
             if pe and pe > 0:
-                if pe < 10: pe_score = 5
+                if pe < 10:   pe_score = 5
                 elif pe < 15: pe_score = 4
                 elif pe < 20: pe_score = 3
                 elif pe < 30: pe_score = 2
-                else: pe_score = 1
+                else:         pe_score = 1
 
-            if pb and pb > 0:
-                if pb < 1: pb_score = 5
+            # PB score: use key_stats priceToBook (more reliable)
+            pb_val = safe_float(ks.get('priceToBook'))
+            if pb_val and pb_val > 0:
+                pb = pb_val  # update pb for stock output
+                if pb_val < 1:   pb_score = 5
+                elif pb_val < 2: pb_score = 4
+                elif pb_val < 3: pb_score = 3
+                elif pb_val < 5: pb_score = 2
+                else:            pb_score = 1
+            elif pb and pb > 0:
+                if pb < 1:   pb_score = 5
                 elif pb < 2: pb_score = 4
                 elif pb < 3: pb_score = 3
                 elif pb < 5: pb_score = 2
-                else: pb_score = 1
+                else:        pb_score = 1
+
+            # ROE score: higher = better. returnOnEquity is a decimal (e.g. 0.15 = 15%)
+            roe_raw = safe_float(fd.get('returnOnEquity'))
+            if roe_raw is not None:
+                roe_pct = roe_raw * 100
+                if roe_pct >= 30:   roe_score = 5
+                elif roe_pct >= 20: roe_score = 4
+                elif roe_pct >= 12: roe_score = 3
+                elif roe_pct >= 6:  roe_score = 2
+                elif roe_pct > 0:   roe_score = 1
+
+            # ROA score: higher = better. returnOnAssets is a decimal
+            roa_raw = safe_float(fd.get('returnOnAssets'))
+            if roa_raw is not None:
+                roa_pct = roa_raw * 100
+                if roa_pct >= 15:   roa_score = 5
+                elif roa_pct >= 10: roa_score = 4
+                elif roa_pct >= 5:  roa_score = 3
+                elif roa_pct >= 2:  roa_score = 2
+                elif roa_pct > 0:   roa_score = 1
+
+            # Debt/Equity score: lower = better. debtToEquity from yahooquery is in % (e.g. 102.63 means 1.03x)
+            de_raw = safe_float(fd.get('debtToEquity'))
+            if de_raw is not None and de_raw >= 0:
+                if de_raw < 20:    de_score = 5
+                elif de_raw < 50:  de_score = 4
+                elif de_raw < 100: de_score = 3
+                elif de_raw < 200: de_score = 2
+                else:              de_score = 1
+
+            # DCF proxy via EV/EBITDA: lower = cheaper = higher score
+            ev_ebitda = safe_float(ks.get('enterpriseToEbitda'))
+            if ev_ebitda and ev_ebitda > 0:
+                if ev_ebitda < 8:    dcf_score = 5
+                elif ev_ebitda < 12: dcf_score = 4
+                elif ev_ebitda < 18: dcf_score = 3
+                elif ev_ebitda < 25: dcf_score = 2
+                else:                dcf_score = 1
 
             # ── Technicals ────────────────────────────────────────────────────
             tech = compute_technicals(hist, symbol)
