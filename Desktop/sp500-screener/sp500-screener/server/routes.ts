@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { fetchSP500ScreenerData } from "./financeApi";
+import { fetchSP500ScreenerData, refreshSP500Data } from "./financeApi";
 import fs from "fs";
 import path from "path";
 import { exec } from "child_process";
@@ -59,7 +59,7 @@ export async function registerRoutes(
   app.post("/api/screener/refresh", async (req, res) => {
     try {
       console.log("Force refreshing S&P 500 data...");
-      const data = await fetchSP500ScreenerData();
+      const data = await refreshSP500Data();
       const result = {
         stocks: data.sp500Stocks,
         total: data.sp500Stocks.length,

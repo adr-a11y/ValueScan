@@ -30,17 +30,25 @@ interface FinanceParquetData {
   lastUpdated: string;
 }
 
-// Run a Python DuckDB script to fetch and process finance data
+// Read data from the committed JSON cache file (fast, no Python needed)
 export async function fetchSP500ScreenerData(): Promise<FinanceParquetData> {
+  const outputPath = path.join(process.cwd(), "server/stocks_cache.json");
+  const raw = fs.readFileSync(outputPath, "utf-8");
+  const data = JSON.parse(raw);
+  return data;
+}
+
+// Run the Python script to fetch fresh data from Yahoo Finance (used by refresh endpoint)
+export async function refreshSP500Data(): Promise<FinanceParquetData> {
   const scriptPath = path.join(process.cwd(), "server/fetch_stocks.py");
   const outputPath = path.join(process.cwd(), "server/stocks_cache.json");
 
   const { stdout, stderr } = await execAsync(`python3 ${scriptPath}`, {
-    timeout: 120000,
-    maxBuffer: 50 * 1024 * 1024,
+    timeout: 600000, // 10 minutes
+    maxBuffer: 100 * 1024 * 1024,
   });
 
-  if (stderr && !stderr.includes("UserWarning") && !stderr.includes("FutureWarning")) {
+  if (stderr && !stderr.includes("UserWarning") && !stderr.includes("FutureWarning") && !stderr.includes("HTTP Error 404")) {
     console.error("Python script stderr:", stderr.substring(0, 500));
   }
 
