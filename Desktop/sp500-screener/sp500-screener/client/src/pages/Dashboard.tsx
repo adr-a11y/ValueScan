@@ -121,6 +121,7 @@ type FilterState = {
   macdFilter: "all" | "bullish" | "bearish" | "bullish_cross" | "bearish_cross";
   smaFilter: "all" | "above_200" | "below_200" | "above_50" | "golden_cross" | "death_cross";
   bbFilter: "all" | "near_lower" | "near_upper";
+  newsRiskFilter: "all" | "low_only" | "exclude_high";
 };
 
 const defaultFilters: FilterState = {
@@ -134,6 +135,7 @@ const defaultFilters: FilterState = {
   macdFilter: "all",
   smaFilter: "all",
   bbFilter: "all",
+  newsRiskFilter: "all",
 };
 
 export default function Dashboard() {
@@ -235,6 +237,10 @@ export default function Dashboard() {
         if (filters.bbFilter === "near_lower" && (s.bbPctB === null || (s.bbPctB ?? 1) > 0.2)) return false;
         if (filters.bbFilter === "near_upper" && (s.bbPctB === null || (s.bbPctB ?? 0) < 0.8)) return false;
 
+        // News risk filter
+        if (filters.newsRiskFilter === "low_only" && s.newsRisk !== "Low") return false;
+        if (filters.newsRiskFilter === "exclude_high" && s.newsRisk === "High") return false;
+
         return true;
       });
     }
@@ -291,6 +297,7 @@ export default function Dashboard() {
     filters.macdFilter !== "all",
     filters.smaFilter !== "all",
     filters.bbFilter !== "all",
+    filters.newsRiskFilter !== "all",
   ].filter(Boolean).length;
 
   function handleSort(key: SortKey) {
@@ -579,7 +586,7 @@ export default function Dashboard() {
                       variant="ghost"
                       size="sm"
                       className="h-7 text-xs text-muted-foreground"
-                      onClick={() => setFilters((f) => ({ ...f, rsiFilter: "all", trendFilter: "all", macdFilter: "all", smaFilter: "all", bbFilter: "all" }))}
+                      onClick={() => setFilters((f) => ({ ...f, rsiFilter: "all", trendFilter: "all", macdFilter: "all", smaFilter: "all", bbFilter: "all", newsRiskFilter: "all" }))}
                     >
                       <X className="h-3 w-3 mr-1" /> Clear tech filters
                     </Button>
@@ -693,6 +700,24 @@ export default function Dashboard() {
                   </Select>
                   <p className="text-xs text-muted-foreground leading-tight">20-period, 2σ bands. Lower = potential bounce.</p>
                 </div>
+                {/* News Risk Filter */}
+                <div className="space-y-1.5">
+                  <label className="text-xs text-muted-foreground font-medium uppercase tracking-wide">News Risk</label>
+                  <Select
+                    value={filters.newsRiskFilter}
+                    onValueChange={(v) => setFilters((f) => ({ ...f, newsRiskFilter: v as any }))}
+                  >
+                    <SelectTrigger className="h-8 text-xs" data-testid="select-news-risk">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Any News Risk</SelectItem>
+                      <SelectItem value="exclude_high">Exclude High Risk</SelectItem>
+                      <SelectItem value="low_only">Low Risk Only</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground leading-tight">Based on recent headlines. High = lawsuits, downgrades, fraud.</p>
+                </div>
               </div>
             </div>
           )}
@@ -764,6 +789,7 @@ export default function Dashboard() {
                       Earnings <SortIcon col="earningsWeeksAgo" />
                     </button>
                   </th>
+                  <th className="px-4 py-3 text-center font-medium hidden sm:table-cell">News</th>
                   <th className="px-4 py-3 text-right font-medium w-8"></th>
                 </tr>
               </thead>
@@ -780,7 +806,7 @@ export default function Dashboard() {
 
                 {!isLoading && error && (
                   <tr>
-                    <td colSpan={13} className="px-4 py-12 text-center text-muted-foreground">
+                    <td colSpan={14} className="px-4 py-12 text-center text-muted-foreground">
                       <div className="flex flex-col items-center gap-2">
                         <TrendingDown className="h-8 w-8 opacity-50" />
                         <p>Failed to load data. Try refreshing.</p>
@@ -794,7 +820,7 @@ export default function Dashboard() {
 
                 {!isLoading && !error && filteredStocks.length === 0 && (
                   <tr>
-                    <td colSpan={13} className="px-4 py-12 text-center text-muted-foreground">
+                    <td colSpan={14} className="px-4 py-12 text-center text-muted-foreground">
                       <div className="flex flex-col items-center gap-2">
                         <Filter className="h-8 w-8 opacity-50" />
                         <p>No stocks match the current filters.</p>
@@ -974,6 +1000,36 @@ function StockRow({ stock }: { stock: Stock }) {
           <span className="text-xs text-muted-foreground">{earningsWks?.toFixed(1)}w ago</span>
         ) : (
           <span className="text-muted-foreground text-xs">—</span>
+        )}
+      </td>
+      <td className="px-4 py-3 text-center hidden sm:table-cell">
+        {stock.newsRisk && stock.newsRisk !== "Low" ? (
+          <Tooltip>
+            <TooltipTrigger>
+              <Badge
+                className={`text-xs whitespace-nowrap cursor-help ${
+                  stock.newsRisk === "High"
+                    ? "bg-red-500/15 text-red-400 border-red-500/30"
+                    : "bg-orange-500/15 text-orange-400 border-orange-500/30"
+                }`}
+                variant="outline"
+              >
+                {stock.newsRisk === "High" ? "⚠ High" : "~ Mid"}
+              </Badge>
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs">
+              <p className="font-medium mb-1">Recent News Risk: {stock.newsRisk}</p>
+              {stock.newsHeadlines && stock.newsHeadlines
+                .filter((h: any) => h.sentiment === "negative")
+                .slice(0, 2)
+                .map((h: any, i: number) => (
+                  <p key={i} className="text-xs text-muted-foreground mt-0.5">• {h.title}</p>
+                ))
+              }
+            </TooltipContent>
+          </Tooltip>
+        ) : (
+          <span className="text-xs text-muted-foreground">—</span>
         )}
       </td>
       <td className="px-4 py-3 text-right">

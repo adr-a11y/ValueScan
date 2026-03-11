@@ -248,6 +248,101 @@ def compute_technicals(history_df, symbol):
         return {}
 
 
+# ── Negative/positive keyword lists for news sentiment ───────────────────────
+_NEG_KEYWORDS = [
+    # Legal & regulatory
+    'lawsuit', 'sued', 'litigation', 'fraud', 'investigation', 'probe',
+    'sec charges', 'doj', 'ftc', 'fine', 'penalty', 'settlement',
+    'indicted', 'subpoena', 'class action', 'recall', 'violation',
+    'misconduct', 'accounting irregularit', 'restatement',
+    # Financial distress
+    'bankruptcy', 'bankrupt', 'default', 'downgrade', 'credit cut',
+    'misses estimates', 'misses expectations', 'below expectations',
+    'disappoints', 'issues warning', 'profit warning',
+    'layoffs', 'mass layoff', 'restructuring charges', 'writedown',
+    'write-off', 'impairment', 'plunges', 'tumbles',
+    # Executive
+    'ceo resigns', 'ceo fired', 'ceo ousted', 'cfo resigns',
+    'executive departure', 'board ousts',
+    # Macro risk (company-specific)
+    'sanctions', 'export ban', 'trading halted', 'delisted',
+]
+_POS_KEYWORDS = [
+    'beats estimates', 'beats expectations', 'exceeds estimates',
+    'record revenue', 'record earnings', 'record profit',
+    'raises guidance', 'raises forecast', 'upgraded', 'price target raised',
+    'buyback', 'share repurchase', 'special dividend',
+    'strong growth', 'strong demand', 'surges', 'rallies',
+    'new contract', 'major contract', 'strategic partnership',
+]
+
+
+def fetch_news_sentiment(symbol):
+    """
+    Fetch up to 8 recent Yahoo Finance headlines for the symbol.
+    Returns (sentiment_score, news_risk, top_headlines).
+      sentiment_score: float, positive = good news, negative = bad news
+      news_risk: 'High' | 'Moderate' | 'Low'
+      top_headlines: list of {title, url, date, sentiment}
+    """
+    try:
+        import yfinance as yf
+        ticker = yf.Ticker(symbol)
+        articles = ticker.news or []
+        if not articles:
+            return 0.0, 'Low', []
+
+        neg_hits = 0
+        pos_hits = 0
+        headlines = []
+
+        for article in articles[:8]:
+            content = article.get('content', {})
+            if not isinstance(content, dict):
+                continue
+            title = (content.get('title') or '').lower()
+            summary = (content.get('summary') or '').lower()
+            text = title + ' ' + summary
+            url_obj = content.get('canonicalUrl') or {}
+            url = url_obj.get('url', '') if isinstance(url_obj, dict) else ''
+            pub_date = (content.get('pubDate') or '')[:10]
+            orig_title = content.get('title') or ''
+
+            article_neg = sum(1 for kw in _NEG_KEYWORDS if kw in text)
+            article_pos = sum(1 for kw in _POS_KEYWORDS if kw in text)
+            neg_hits += article_neg
+            pos_hits += article_pos
+
+            if article_neg > 0:
+                sent = 'negative'
+            elif article_pos > 0:
+                sent = 'positive'
+            else:
+                sent = 'neutral'
+
+            if orig_title:
+                headlines.append({
+                    'title': orig_title,
+                    'url': url,
+                    'date': pub_date,
+                    'sentiment': sent,
+                })
+
+        total = len(articles[:8])
+        # Risk threshold: 2+ distinct negative hits = High, 1 = Moderate
+        if neg_hits >= 2:
+            risk = 'High'
+        elif neg_hits == 1:
+            risk = 'Moderate'
+        else:
+            risk = 'Low'
+
+        score = round((pos_hits - neg_hits) / max(total, 1), 2)
+        return score, risk, headlines[:5]
+    except Exception:
+        return 0.0, 'Low', []
+
+
 def compute_undervaluation_score(stock):
     score = 0
     consensus = (stock.get('analystConsensus') or '').lower()
@@ -280,7 +375,14 @@ def compute_undervaluation_score(stock):
     elif pct_below > 10:
         score += 4
 
-    return min(score, 100)
+    # News risk penalty
+    news_risk = stock.get('newsRisk') or 'Low'
+    if news_risk == 'High':
+        score -= 15
+    elif news_risk == 'Moderate':
+        score -= 5
+
+    return min(max(score, 0), 100)
 
 
 def main():
@@ -502,6 +604,9 @@ def main():
             if tech:
                 technicals_map[symbol] = tech
 
+            # ── News Sentiment ────────────────────────────────────────────────
+            news_score, news_risk, news_headlines = fetch_news_sentiment(symbol)
+
             # ── Upside estimate ───────────────────────────────────────────────
             upside = None
             if pct_below_year_high and 'buy' in analyst_consensus.lower():
@@ -572,6 +677,10 @@ def main():
                 "volRatio": tech.get("volRatio"),
                 "trendSignals": tech.get("trendSignals", []),
                 "trend": tech.get("trend"),
+                # News sentiment
+                "newsSentimentScore": news_score,
+                "newsRisk": news_risk,
+                "newsHeadlines": news_headlines,
             }
 
             stock["_undervaluationScore"] = compute_undervaluation_score(stock)

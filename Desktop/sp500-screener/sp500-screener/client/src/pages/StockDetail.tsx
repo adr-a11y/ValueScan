@@ -332,6 +332,52 @@ export default function StockDetail() {
           </Card>
         </div>
 
+        {/* News Sentiment */}
+        {stock.newsHeadlines && stock.newsHeadlines.length > 0 && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Activity className="h-4 w-4 text-muted-foreground" />
+                Recent News
+                {stock.newsRisk && stock.newsRisk !== "Low" && (
+                  <span className={`ml-2 text-xs font-normal px-2 py-0.5 rounded-full ${
+                    stock.newsRisk === "High"
+                      ? "bg-red-500/15 text-red-400"
+                      : "bg-orange-500/15 text-orange-400"
+                  }`}>
+                    {stock.newsRisk} Risk
+                  </span>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {stock.newsHeadlines.map((h: any, i: number) => (
+                  <div key={i} className="flex items-start gap-2 py-1.5 border-b border-border/50 last:border-0">
+                    <span className={`mt-0.5 h-2 w-2 rounded-full flex-shrink-0 ${
+                      h.sentiment === "negative" ? "bg-red-400" :
+                      h.sentiment === "positive" ? "bg-emerald-400" : "bg-muted-foreground"
+                    }`} />
+                    <div className="flex-1 min-w-0">
+                      {h.url ? (
+                        <a href={h.url} target="_blank" rel="noopener noreferrer"
+                          className="text-sm hover:underline text-foreground line-clamp-2">
+                          {h.title}
+                        </a>
+                      ) : (
+                        <p className="text-sm text-foreground line-clamp-2">{h.title}</p>
+                      )}
+                      {h.date && (
+                        <p className="text-xs text-muted-foreground mt-0.5">{h.date}</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Financial Health Scores */}
         <Card>
           <CardHeader className="pb-3">
