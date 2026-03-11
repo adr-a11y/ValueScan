@@ -343,6 +343,39 @@ def fetch_news_sentiment(symbol):
         return 0.0, 'Low', []
 
 
+
+def fetch_blackrock_holding(symbol):
+    """
+    Fetch BlackRock's latest institutional holding for the symbol.
+    Returns dict with: increased (bool), pctChange (float), shares (int), dateReported (str)
+    or None if BlackRock is not in the top holders list.
+    """
+    try:
+        import yfinance as yf
+        ticker = yf.Ticker(symbol)
+        ih = ticker.institutional_holders
+        if ih is None or ih.empty:
+            return None
+        br = ih[ih['Holder'].str.contains('Blackrock|BlackRock|blackrock', case=False, na=False)]
+        if br.empty:
+            return None
+        row = br.iloc[0]
+        pct_change = row.get('pctChange')
+        shares = row.get('Shares')
+        date_reported = row.get('Date Reported')
+        if pct_change is None:
+            return None
+        pct_change_f = float(pct_change)
+        return {
+            'blackrockIncreased': pct_change_f > 0,
+            'blackrockPctChange': round(pct_change_f * 100, 2),  # convert to % (e.g. 0.0073 -> 0.73)
+            'blackrockShares': int(shares) if shares is not None else None,
+            'blackrockDateReported': str(date_reported)[:10] if date_reported is not None else None,
+        }
+    except Exception:
+        return None
+
+
 def compute_undervaluation_score(stock):
     score = 0
     consensus = (stock.get('analystConsensus') or '').lower()
@@ -654,6 +687,9 @@ def main():
             # ── News Sentiment ────────────────────────────────────────────────
             news_score, news_risk, news_headlines = fetch_news_sentiment(symbol)
 
+            # ── BlackRock Holdings ────────────────────────────────────────────
+            br_data = fetch_blackrock_holding(symbol)
+
             # ── Upside estimate ───────────────────────────────────────────────
             upside = None
             if pct_below_year_high and 'buy' in analyst_consensus.lower():
@@ -728,6 +764,11 @@ def main():
                 "newsSentimentScore": news_score,
                 "newsRisk": news_risk,
                 "newsHeadlines": news_headlines,
+                # BlackRock institutional holding
+                "blackrockIncreased": br_data.get('blackrockIncreased') if br_data else None,
+                "blackrockPctChange": br_data.get('blackrockPctChange') if br_data else None,
+                "blackrockShares": br_data.get('blackrockShares') if br_data else None,
+                "blackrockDateReported": br_data.get('blackrockDateReported') if br_data else None,
             }
 
             stock["_undervaluationScore"] = compute_undervaluation_score(stock)

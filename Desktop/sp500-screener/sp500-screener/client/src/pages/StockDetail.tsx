@@ -310,6 +310,24 @@ export default function StockDetail() {
                 <p className="text-muted-foreground text-sm">No analyst data available</p>
               )}
 
+              {/* BlackRock Holding */}
+              {stock.blackrockIncreased !== null && stock.blackrockIncreased !== undefined && (
+                <div className="pt-3 border-t border-border">
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="text-muted-foreground">BlackRock Position</span>
+                    <span className={`ml-auto font-medium flex items-center gap-1 ${stock.blackrockIncreased ? "text-emerald-400" : "text-red-400"}`}>
+                      {stock.blackrockIncreased ? "▲ Increased" : "▼ Decreased"}
+                      <span className="text-xs text-muted-foreground ml-1">
+                        ({stock.blackrockPctChange && stock.blackrockPctChange > 0 ? "+" : ""}{stock.blackrockPctChange?.toFixed(2)}% · {stock.blackrockDateReported})
+                      </span>
+                    </span>
+                  </div>
+                  {stock.blackrockShares && (
+                    <p className="text-xs text-muted-foreground mt-1">{stock.blackrockShares.toLocaleString()} shares held</p>
+                  )}
+                </div>
+              )}
+
               {/* Earnings */}
               <div className="pt-3 border-t border-border">
                 <div className="flex items-center gap-2 text-sm">

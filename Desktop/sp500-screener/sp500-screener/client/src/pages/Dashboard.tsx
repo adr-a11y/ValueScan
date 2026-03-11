@@ -122,6 +122,7 @@ type FilterState = {
   smaFilter: "all" | "above_200" | "below_200" | "above_50" | "golden_cross" | "death_cross";
   bbFilter: "all" | "near_lower" | "near_upper";
   newsRiskFilter: "all" | "low_only" | "exclude_high";
+  blackrockFilter: "all" | "increased_only";
 };
 
 const defaultFilters: FilterState = {
@@ -136,6 +137,7 @@ const defaultFilters: FilterState = {
   smaFilter: "all",
   bbFilter: "all",
   newsRiskFilter: "all",
+  blackrockFilter: "all",
 };
 
 export default function Dashboard() {
@@ -241,6 +243,9 @@ export default function Dashboard() {
         if (filters.newsRiskFilter === "low_only" && s.newsRisk !== "Low") return false;
         if (filters.newsRiskFilter === "exclude_high" && s.newsRisk === "High") return false;
 
+        // BlackRock filter
+        if (filters.blackrockFilter === "increased_only" && !s.blackrockIncreased) return false;
+
         return true;
       });
     }
@@ -298,6 +303,7 @@ export default function Dashboard() {
     filters.smaFilter !== "all",
     filters.bbFilter !== "all",
     filters.newsRiskFilter !== "all",
+    filters.blackrockFilter !== "all",
   ].filter(Boolean).length;
 
   function handleSort(key: SortKey) {
@@ -718,6 +724,23 @@ export default function Dashboard() {
                   </Select>
                   <p className="text-xs text-muted-foreground leading-tight">Based on recent headlines. High = lawsuits, downgrades, fraud.</p>
                 </div>
+                {/* BlackRock Filter */}
+                <div className="space-y-1.5">
+                  <label className="text-xs text-muted-foreground font-medium uppercase tracking-wide">BlackRock</label>
+                  <Select
+                    value={filters.blackrockFilter}
+                    onValueChange={(v) => setFilters((f) => ({ ...f, blackrockFilter: v as any }))}
+                  >
+                    <SelectTrigger className="h-8 text-xs" data-testid="select-blackrock">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Any</SelectItem>
+                      <SelectItem value="increased_only">Increased Position</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground leading-tight">Filter to stocks where BlackRock raised their stake in latest 13F filing.</p>
+                </div>
               </div>
             </div>
           )}
@@ -790,6 +813,7 @@ export default function Dashboard() {
                     </button>
                   </th>
                   <th className="px-4 py-3 text-center font-medium hidden sm:table-cell">News</th>
+                  <th className="px-4 py-3 text-center font-medium hidden lg:table-cell">BlackRock</th>
                   <th className="px-4 py-3 text-right font-medium w-8"></th>
                 </tr>
               </thead>
@@ -806,7 +830,7 @@ export default function Dashboard() {
 
                 {!isLoading && error && (
                   <tr>
-                    <td colSpan={14} className="px-4 py-12 text-center text-muted-foreground">
+                    <td colSpan={15} className="px-4 py-12 text-center text-muted-foreground">
                       <div className="flex flex-col items-center gap-2">
                         <TrendingDown className="h-8 w-8 opacity-50" />
                         <p>Failed to load data. Try refreshing.</p>
@@ -820,7 +844,7 @@ export default function Dashboard() {
 
                 {!isLoading && !error && filteredStocks.length === 0 && (
                   <tr>
-                    <td colSpan={14} className="px-4 py-12 text-center text-muted-foreground">
+                    <td colSpan={15} className="px-4 py-12 text-center text-muted-foreground">
                       <div className="flex flex-col items-center gap-2">
                         <Filter className="h-8 w-8 opacity-50" />
                         <p>No stocks match the current filters.</p>
@@ -1026,6 +1050,35 @@ function StockRow({ stock }: { stock: Stock }) {
                   <p key={i} className="text-xs text-muted-foreground mt-0.5">• {h.title}</p>
                 ))
               }
+            </TooltipContent>
+          </Tooltip>
+        ) : (
+          <span className="text-xs text-muted-foreground">—</span>
+        )}
+      </td>
+      <td className="px-4 py-3 text-center hidden lg:table-cell">
+        {stock.blackrockIncreased !== null && stock.blackrockIncreased !== undefined ? (
+          <Tooltip>
+            <TooltipTrigger>
+              <Badge
+                className={`text-xs whitespace-nowrap cursor-help ${
+                  stock.blackrockIncreased
+                    ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
+                    : "bg-muted text-muted-foreground border-border"
+                }`}
+                variant="outline"
+              >
+                {stock.blackrockIncreased
+                  ? `▲ +${stock.blackrockPctChange?.toFixed(2)}%`
+                  : `▼ ${stock.blackrockPctChange?.toFixed(2)}%`}
+              </Badge>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p className="font-medium">BlackRock {stock.blackrockIncreased ? "increased" : "decreased"} position</p>
+              <p className="text-xs text-muted-foreground">{stock.blackrockPctChange && stock.blackrockPctChange > 0 ? "+" : ""}{stock.blackrockPctChange?.toFixed(2)}% change · {stock.blackrockShares?.toLocaleString()} shares</p>
+              {stock.blackrockDateReported && (
+                <p className="text-xs text-muted-foreground">As of {stock.blackrockDateReported}</p>
+              )}
             </TooltipContent>
           </Tooltip>
         ) : (
