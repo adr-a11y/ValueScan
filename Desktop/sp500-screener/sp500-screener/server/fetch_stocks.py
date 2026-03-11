@@ -321,7 +321,6 @@ def main():
         key_stats = yq.key_stats
         financial_data = yq.financial_data
         earnings_data = yq.earnings
-        recommendation_trend = yq.recommendation_trend
         asset_profile = yq.asset_profile
     except Exception as e:
         print(f"WARNING: yahooquery batch fetch failed: {e}", file=sys.stderr)
@@ -329,7 +328,6 @@ def main():
         key_stats = {}
         financial_data = {}
         earnings_data = {}
-        recommendation_trend = {}
         asset_profile = {}
 
     print("Fundamentals fetched. Computing per-stock data...", file=sys.stderr)
@@ -390,37 +388,50 @@ def main():
             sector = safe_str(ap.get('sector') or sd.get('sector', ''))
             industry = safe_str(ap.get('industry') or sd.get('industry', ''))
 
-            # ── Analyst consensus from recommendation_trend ───────────────────
+            # ── Analyst consensus from financial_data.recommendationKey ─────────
             analyst_buy = 0
             analyst_hold = 0
             analyst_sell = 0
             analyst_strong_buy = 0
             analyst_strong_sell = 0
             analyst_consensus = "Hold"
+            rec_mean = None
 
             try:
-                rt = recommendation_trend.get(symbol) if isinstance(recommendation_trend, dict) else None
-                if rt is not None and isinstance(rt, pd.DataFrame) and not rt.empty:
-                    # Most recent period
-                    row = rt.iloc[0]
-                    analyst_strong_buy = safe_int(row.get('strongBuy', 0)) or 0
-                    analyst_buy = safe_int(row.get('buy', 0)) or 0
-                    analyst_hold = safe_int(row.get('hold', 0)) or 0
-                    analyst_sell = safe_int(row.get('sell', 0)) or 0
-                    analyst_strong_sell = safe_int(row.get('strongSell', 0)) or 0
+                rec_key = safe_str(fd.get('recommendationKey'))
+                rec_mean = safe_float(fd.get('recommendationMean'))
+                num_analysts = safe_int(fd.get('numberOfAnalystOpinions')) or 0
 
-                    total = analyst_strong_buy + analyst_buy + analyst_hold + analyst_sell + analyst_strong_sell
-                    if total > 0:
-                        buy_score = (analyst_strong_buy * 2 + analyst_buy) / total
-                        sell_score = (analyst_strong_sell * 2 + analyst_sell) / total
-                        if buy_score > 0.6:
-                            analyst_consensus = "Strong Buy"
-                        elif buy_score > 0.3:
-                            analyst_consensus = "Buy"
-                        elif sell_score > 0.3:
-                            analyst_consensus = "Sell"
-                        else:
-                            analyst_consensus = "Hold"
+                if rec_key:
+                    rec_key_lower = rec_key.lower().replace('_', ' ')
+                    if rec_key_lower in ('strong buy', 'strongbuy'):
+                        analyst_consensus = "Strong Buy"
+                        analyst_strong_buy = num_analysts
+                    elif rec_key_lower == 'buy':
+                        analyst_consensus = "Buy"
+                        analyst_buy = num_analysts
+                    elif rec_key_lower == 'hold':
+                        analyst_consensus = "Hold"
+                        analyst_hold = num_analysts
+                    elif rec_key_lower in ('underperform', 'sell'):
+                        analyst_consensus = "Sell"
+                        analyst_sell = num_analysts
+                    elif rec_key_lower in ('strong sell', 'strongsell'):
+                        analyst_consensus = "Sell"
+                        analyst_strong_sell = num_analysts
+                    else:
+                        analyst_consensus = "Hold"
+                        analyst_hold = num_analysts
+                elif rec_mean is not None:
+                    # Fallback: map recommendationMean (1=strong buy, 5=strong sell)
+                    if rec_mean <= 1.5:
+                        analyst_consensus = "Strong Buy"
+                    elif rec_mean <= 2.5:
+                        analyst_consensus = "Buy"
+                    elif rec_mean <= 3.5:
+                        analyst_consensus = "Hold"
+                    else:
+                        analyst_consensus = "Sell"
             except Exception:
                 pass
 
@@ -447,8 +458,7 @@ def main():
             except Exception:
                 pass
 
-            # ── Scores (simplified without FMP ratings) ──────────────────────
-            # Use relative valuation vs sector peers for PE/PB scores
+            # ── Scores and Overall Rating ───────────────────────────────
             pe_score = None
             pb_score = None
             dcf_score = None
@@ -456,6 +466,21 @@ def main():
             roa_score = None
             de_score = None
             overall_rating = None
+
+            # Derive overallRating from recommendationMean:
+            # 1.0-1.5 = S (Strong Buy), 1.5-2.0 = A (Buy)
+            # 2.0-2.75 = B (Hold/Buy), 2.75-3.5 = C (Hold), 3.5+ = D (Sell)
+            if rec_mean is not None:
+                if rec_mean <= 1.5:
+                    overall_rating = "S"
+                elif rec_mean <= 2.0:
+                    overall_rating = "A"
+                elif rec_mean <= 2.75:
+                    overall_rating = "B"
+                elif rec_mean <= 3.5:
+                    overall_rating = "C"
+                else:
+                    overall_rating = "D"
 
             # Simple PE score: lower PE = higher score (1-5 scale)
             if pe and pe > 0:
