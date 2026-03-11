@@ -1,0 +1,10 @@
+node_modules
+dist
+.DS_Store
+server/public
+vite.config.ts.*
+*.tar.gz
+
+# Large parquet data files (workspace-only, not needed on Render)
+*.parquet
+
