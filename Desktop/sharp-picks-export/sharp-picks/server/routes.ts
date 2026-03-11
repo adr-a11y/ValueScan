@@ -7,11 +7,46 @@ import { checkCredentials, createSession, destroySession, validateSession, requi
 // Pre-wire the Odds API key from environment variable on startup
 const ENV_API_KEY = process.env.ODDS_API_KEY;
 
-export function registerRoutes(httpServer: Server, app: Express) {
-  // On first boot, seed the API key from env if provided
-  if (ENV_API_KEY) {
-    storage.upsertSettings({ apiKey: ENV_API_KEY }).catch(() => {});
+// Auto-refresh picks on startup if API key is available
+async function autoRefreshOnStartup() {
+  if (!ENV_API_KEY) return;
+  try {
+    console.log("[startup] API key found — auto-fetching picks from The Odds API...");
+    await storage.upsertSettings({ apiKey: ENV_API_KEY });
+    const settings = await storage.getSettings();
+    const sports = settings?.sports ?? ["basketball_nba", "basketball_ncaab", "icehockey_nhl"];
+    const maxPicks = settings?.maxPicksPerDay ?? 20;
+    const analyzedPicks: any[] = [];
+    for (const sport of sports) {
+      try {
+        const { games } = await getOdds(ENV_API_KEY, sport, "us", "h2h,spreads,totals");
+        console.log(`[startup] Fetched ${games.length} games for ${sport}`);
+        const sportPicks = analyzePicks(games, sport);
+        analyzedPicks.push(...sportPicks);
+      } catch (err) {
+        console.error(`[startup] Failed to fetch ${sport}:`, err);
+      }
+    }
+    if (analyzedPicks.length > 0) {
+      await storage.clearTodaysPicks();
+      const topPicks = analyzedPicks
+        .sort((a: any, b: any) => b.confidence - a.confidence)
+        .slice(0, maxPicks);
+      for (const pick of topPicks) {
+        await storage.createPick({ ...pick, result: "pending" });
+      }
+      console.log(`[startup] Auto-loaded ${topPicks.length} real picks from API.`);
+    } else {
+      console.log("[startup] No picks generated from API — check sports/filters.");
+    }
+  } catch (err) {
+    console.error("[startup] Auto-refresh failed:", err);
   }
+}
+
+export function registerRoutes(httpServer: Server, app: Express) {
+  // On first boot, seed API key and auto-fetch picks
+  autoRefreshOnStartup();
 
   // ── Auth endpoints ────────────────────────────────────────────
   app.post("/api/auth/login", (req, res) => {
